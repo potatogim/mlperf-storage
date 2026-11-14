@@ -13,6 +13,7 @@
     * [3.3. Training Run Options](#33-training-run-options)
     * [3.4. Training Access Via POSIX API Options](#34-training-access-via-posix-api-options)
     * [3.5. Training Access Via Object API Options](#35-training-access-via-object-api-options)
+    * [3.5a. Training Access Via DAOS API Options](#35a-training-access-via-daos-api-options)
     * [3.6. Training OPEN versus CLOSED Options](#36-training-open-versus-closed-options)
 * [4. Validating the Checkpointing Workloads](#4-validating-the-checkpointing-workloads)
     * [4.1. Checkpointing Sizing Options](#41-checkpointing-sizing-options)
@@ -21,6 +22,7 @@
     * [4.3. Checkpointing Run Options](#43-checkpointing-run-options)
     * [4.4. Checkpointing Access Via POSIX API Options](#44-checkpointing-access-via-posix-api-options)
     * [4.5. Checkpointing Access Via Object API Options](#45-checkpointing-access-via-object-api-options)
+    * [4.5a. Checkpointing Access Via DAOS API Options](#45a-checkpointing-access-via-daos-api-options)
     * [4.6. Checkpointing OPEN versus CLOSED Options](#46-checkpointing-open-versus-closed-options)
     * [4.7. Storage System Must Be Simultaneously R/W or Remappable](#47-storage-system-must-be-simultaneously-rw-or-remappable)
 * [5. Validating the VDB Workloads](#5-validating-the-vdb-workloads)
@@ -422,9 +424,13 @@ root_folder (or any name you prefer)
 
 3.4.1. **trainingMlpstoragePathArgs** --  The arguments to `mlpstorage` that set the directory pathname where the dataset is stored and the directory where the output logfiles are stored must both be set and must be set to different values.
 
-3.4.2. **trainingMlpstorageFilesystemCheck** --  The dataset directory and the results directory of every run must be on different filesystems, and each *run* *timestamp directory* must carry the evidence: a `fs_separation.json` file whose `same_filesystem` is false, or, in a leaf without that file, a `df` listing in `training_run.stdout.log` covering both directories and showing them on different mounts.  A run whose evidence shows one filesystem, or a run carrying neither form of evidence, is INVALID.  Runs of a system whose description declares the object API are exempt.  (Commentary: `RulesCommentary.md` §3.4.2.)
+3.4.2. **trainingMlpstorageFilesystemCheck** --  The dataset directory and the results directory of every run must be on different filesystems, and each *run* *timestamp directory* must carry the evidence: a `fs_separation.json` file whose `same_filesystem` is false, or, in a leaf without that file, a `df` listing in `training_run.stdout.log` covering both directories and showing them on different mounts.  A run whose evidence shows one filesystem, or a run carrying neither form of evidence, is INVALID.  Runs of a system whose description declares the object API or the DAOS API are exempt from this evidence; DAOS API runs are checked as described in 3.5a.  (Commentary: `RulesCommentary.md` §3.4.2.)
 
 ## 3.5. Training Access Via Object API Options
+
+## 3.5a. Training Access Via DAOS API Options
+
+A training run that uses the DAOS API reads and writes its dataset through the DAOS File System library (libdfs), with no POSIX mount between the benchmark and the storage system.  The system description of such a run declares `benchmark_API` "daos".  The dataset directory is an absolute path inside a DAOS container that existed before the run; the pool and the container are taken from the DAOS_POOL and DAOS_CONT environment variables unless `--params` overrides `storage.storage_options.pool` or `storage.storage_options.container`.  The run's ``*_metadata.json`` records the effective values in `parameters` as `storage.storage_options.pool` and `storage.storage_options.container`, with `storage.storage_type` equal to "daos"; a `storage.storage_type` override other than "daos" is rejected before the run starts.  The results directory is a POSIX path, as for every other run.  The filesystem-separation evidence of 3.4.2 is not required of these runs, in the same way as for the object API; instead, the *submission validator* must confirm that every run recorded `storage.storage_type` "daos" and a non-empty pool and container.
 
 ## 3.6. Training OPEN versus CLOSED Options
 
@@ -521,9 +527,13 @@ root_folder (or any name you prefer)
 
 4.4.1. **checkpointPathArgs** --  Every run's ``*_metadata.json`` must record both the directory where the checkpoints were written and read (`args.checkpoint_folder`) and the results directory where its output logfiles were stored (`args.results_dir`), and the two values must differ.  A run missing either value, or recording the same value for both, is INVALID.
 
-4.4.2. **checkpointFilesystemCheck** --  The checkpoint directory and the results directory of every run must be on different filesystems, and each *timestamp directory* must carry the evidence: a `fs_separation.json` file whose `same_filesystem` is false, or, in a leaf without that file, a `df` listing in `checkpointing_run.stdout.log` covering both directories and showing them on different mounts.  A run whose evidence shows one filesystem, or a run carrying neither form of evidence, is INVALID.  Runs of a system whose description declares the object API are exempt.  (Commentary: `RulesCommentary.md` §4.4.2.)
+4.4.2. **checkpointFilesystemCheck** --  The checkpoint directory and the results directory of every run must be on different filesystems, and each *timestamp directory* must carry the evidence: a `fs_separation.json` file whose `same_filesystem` is false, or, in a leaf without that file, a `df` listing in `checkpointing_run.stdout.log` covering both directories and showing them on different mounts.  A run whose evidence shows one filesystem, or a run carrying neither form of evidence, is INVALID.  Runs of a system whose description declares the object API or the DAOS API are exempt from this evidence; DAOS API runs are checked as described in 4.5a.  (Commentary: `RulesCommentary.md` §4.4.2.)
 
 ## 4.5. Checkpointing Access Via Object API Options
+
+## 4.5a. Checkpointing Access Via DAOS API Options
+
+A checkpointing run that uses the DAOS API writes and reads its checkpoints through the DAOS File System library (libdfs), with no POSIX mount between the benchmark and the storage system.  The system description of such a run declares `benchmark_API` "daos".  The checkpoint directory is an absolute path inside a DAOS container that existed before the run; the pool and the container are taken from the DAOS_POOL and DAOS_CONT environment variables unless `--params` overrides `storage.storage_options.pool` or `storage.storage_options.container`.  The run's ``*_metadata.json`` records the effective values in `parameters` as `storage.storage_options.pool` and `storage.storage_options.container`, with `storage.storage_type` equal to "daos"; a `storage.storage_type` override other than "daos" is rejected before the run starts.  The results directory is a POSIX path, as for every other run.  The filesystem-separation evidence of 4.4.2 is not required of these runs, in the same way as for the object API; instead, the *submission validator* must confirm that every run recorded `storage.storage_type` "daos" and a non-empty pool and container.
 
 ## 4.6. Checkpointing OPEN versus CLOSED Options
 
